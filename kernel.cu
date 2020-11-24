@@ -341,69 +341,41 @@ __global__ void BP_Update_Weight(float *dev_A, float *dev_B, float *dev_C, const
 	}
 }
 
+
 /**
-* func：calculate class of samples
-* output：yOutTestClass_D calss of samples
-* input：yOutTest_D output of samples
-* input：row 
-* input：col 
+* func：calculate C = A - B(only get positive number)
+* input：n 
+* input：A 
+* input：B
+* output：C 
 */
-__global__ void BP_Calculate_Class(int *yOutTestClass_D, float *yOutTest_D, int row, int col)
-{
-	int y_id = blockDim.y * blockIdx.y + threadIdx.y; // row index
+__global__ void vectorSub(int n, float *A, float *B, float *C) {
 
-	__shared__ float sData[BLOCKSIZE][BLOCKSIZE]; // output of samples
-	__shared__ int sIndx[BLOCKSIZE][BLOCKSIZE]; // calss of output
-
-	if (threadIdx.x < BLOCKSIZE / 2)
-	{
-		sData[threadIdx.y][threadIdx.x] = 0;
-		sIndx[threadIdx.y][threadIdx.x] = threadIdx.x;
-		sData[threadIdx.y][threadIdx.x + BLOCKSIZE / 2] = -2e30;
-		sIndx[threadIdx.y][threadIdx.x + BLOCKSIZE / 2] = threadIdx.x + BLOCKSIZE / 2;
-	}
-
-	__syncthreads();
-
-	if (y_id < row && threadIdx.x < col)
-	{
-		float *objIndex = &yOutTest_D[y_id * col];
-		sData[threadIdx.y][threadIdx.x] = objIndex[threadIdx.x];
-
-		__syncthreads();
-
-		for (int step = BLOCKSIZE / 2; step > 1; step = step >> 1)
-		{
-			int idxStep = threadIdx.x + step;
-			if (threadIdx.x < step && sData[threadIdx.y][threadIdx.x] < sData[threadIdx.y][idxStep])
-			{
-				sData[threadIdx.y][threadIdx.x] = sData[threadIdx.y][idxStep];
-				sIndx[threadIdx.y][threadIdx.x] = sIndx[threadIdx.y][idxStep];
-			}
-		}
-
-		if (threadIdx.x == 0)
-		{
-			yOutTestClass_D[y_id] = sData[threadIdx.y][0] > sData[threadIdx.y][1] ? sIndx[threadIdx.y][0] : sIndx[threadIdx.y][1];
-		}
+    int i = threadIdx.x + blockDim.x * blockIdx.x;
+	
+    if(i < n){
+		if(A[i] > B[i])
+			C[i] = A[i] - B[i];
+		else
+			C[i] = B[i] - A[i];
 	}
 }
 
-/**
-* func：calculate accuracy rate
-* output：yOutTestClass_D sample's class
-* input：yOutTest_D sample's output
-* input：row number of samples
-* input：col 2 classes(0 or 1)
-*/
-__global__ void BP_Calculate_RightRidio(int *yOutTestClass_D, int *outputTestClass_D, int row, int *wrongNum)
-{
-	int x_id = blockDim.x * blockIdx.x + threadIdx.x; // row index
 
-	if (x_id < row && yOutTestClass_D[x_id] != outputTestClass_D[x_id])
+/**
+* func：calculate error
+* input：n 
+* input：A 
+* output：error 
+*/
+__global__ void BP_Calculate_Error(int n, float *A, float* error_D)
+{
+
+	int i = threadIdx.x + blockIdx.x * blockDim.x;
+
+	while(i < n)
 	{
-		//printf("x_id = %d, real = %d, test = %d\n", x_id, outputTestClass_D[x_id], yOutTestClass_D[x_id]);
-		atomicAdd((int*)&wrongNum[0], 1);
+		atomicAdd(&(error_D), A[i]);
 	}
 }
 
@@ -447,17 +419,16 @@ void BpMain(float *inputTrain_H, float *inputTest_H, float *outputTrain_H, float
 	cudaMalloc((void**)&yOut_D, outLayout * batchNum * sizeof(float));
 	cudaMalloc((void**)&yOutTest_D, outLayout * testNum * sizeof(float));
 
-	int *yOutTestClass_D, *outputTestClass_D;
-	cudaMalloc((void**)&yOutTestClass_D, testNum * sizeof(int));
-	cudaMalloc((void**)&outputTestClass_D, testNum * sizeof(int));
-
 	float *w10 = (float*)malloc(hideLayout * inLayout * sizeof(float));
 	float *w21 = (float*)malloc(outLayout * hideLayout * sizeof(float));
+	
+	float *error;
+	cudaMalloc((void**)&error, testNum * outLayout * sizeof(float));
 
-	int *wrongNum_H = (int*)malloc(sizeof(int));
-	int *wrongNum_D;
-	cudaMalloc((void**)&wrongNum_D, sizeof(int));
-	cudaMemset(wrongNum_D, 0, sizeof(int));
+	float *error_H = (float*)malloc(sizeof(float));
+	float *error_D;
+	cudaMalloc((void**)&error_D, sizeof(float));
+	cudaMemset(error_D, 0, sizeof(float));
 
 
 	/* Initialize thread block and kernel grid dimensions */
@@ -511,16 +482,14 @@ void BpMain(float *inputTrain_H, float *inputTest_H, float *outputTrain_H, float
 	/* yOut = hOut * W21' */
 	MatMulCUDATB<<<dimGrid2D_testNum_out, dimBlock2D>>>(hideOutTest_D, weightOutHide_D, yOutTest_D, testNum, hideLayout, outLayout);
 
-	/* calculate result */
-	BP_Calculate_Class<<<dimGrid2D_testNum_out, dimBlock2D>>>(yOutTestClass_D, yOutTest_D, testNum, outLayout);
-	BP_Calculate_Class<<<dimGrid2D_testNum_out, dimBlock2D>>>(outputTestClass_D, outputTest_D, testNum, outLayout);
+	/* calculate error vector */
+	vectorSub<<<dimGrid2D_testNum_out, dimBlock2D>>>(testNum, yOutTest_D, outputTest_D, error); 
 	
-	/* calculate right rate */
-	BP_Calculate_RightRidio<<<dimGrid1D_testNum, dimBlock1D>>>(yOutTestClass_D, outputTestClass_D, testNum, wrongNum_D);
+	/* calculate error */
+	BP_Calculate_Error<<<dimGrid1D_testNum, dimBlock1D>>>(testNum, error, error_D);
 
-
-	cudaMemcpy(wrongNum_H, wrongNum_D, sizeof(int), cudaMemcpyDeviceToHost);
-	printf("BP accuracy is：%.2f%%\n", 100.0f*float(testNum - *wrongNum_H) / float(testNum));
+	cudaMemcpy(error_H, error_D, sizeof(float), cudaMemcpyDeviceToHost);
+	printf("BP error is：%.5f%%\n", 100.0f*float(*error_H) / float(testNum));
 }
 
 
