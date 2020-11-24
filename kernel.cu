@@ -370,7 +370,7 @@ __global__ void BP_Calculate_Error(int n, float *A, float *error_D)
 
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 
-	while(i < n)
+	if(i < n)
 	{
 		atomicAdd(&(error_D[0]), A[i]);
 	}
@@ -480,9 +480,11 @@ void BpMain(float *inputTrain_H, float *inputTest_H, float *outputTrain_H, float
 	MatMulCUDATB<<<dimGrid2D_testNum_out, dimBlock2D>>>(hideOutTest_D, weightOutHide_D, yOutTest_D, testNum, hideLayout, outLayout);
 
 	/* calculate error vector */
+	//printf("Calculate Error Vector\n");
 	vectorSub<<<dimGrid2D_testNum_out, dimBlock2D>>>(testNum, yOutTest_D, outputTest_D, error); 
 	
 	/* calculate error */
+	//printf("Calculate Average Error\n");
 	BP_Calculate_Error<<<dimGrid1D_testNum, dimBlock1D>>>(testNum, error, error_D);
 
 	cudaMemcpy(error_H, error_D, sizeof(float), cudaMemcpyDeviceToHost);
