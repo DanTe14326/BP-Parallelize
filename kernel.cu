@@ -373,6 +373,7 @@ __global__ void BP_Calculate_Error(int n, float *A, float *error_D)
 	if(i < n)
 	{
 		atomicAdd(&(error_D[0]), A[i]);
+		printf("Thread id is: %d,	Error is: %.10f\n", i, error_D[0]);
 	}
 }
 
