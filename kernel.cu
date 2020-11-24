@@ -343,7 +343,7 @@ __global__ void BP_Update_Weight(float *dev_A, float *dev_B, float *dev_C, const
 
 
 /**
-* func：calculate C = A - B(only get positive number)
+* func：calculate error vector
 * input：n 
 * input：A 
 * input：B
@@ -354,10 +354,7 @@ __global__ void vectorSub(int n, float *A, float *B, float *C) {
     int i = threadIdx.x + blockDim.x * blockIdx.x;
 	
     if(i < n){
-		if(A[i] > B[i])
-			C[i] = A[i] - B[i];
-		else
-			C[i] = B[i] - A[i];
+		C[i] = 0.5 * (A[i] - B[i]) * (A[i] - B[i]);
 	}
 }
 
@@ -368,14 +365,14 @@ __global__ void vectorSub(int n, float *A, float *B, float *C) {
 * input：A 
 * output：error 
 */
-__global__ void BP_Calculate_Error(int n, float *A, float* error_D)
+__global__ void BP_Calculate_Error(int n, float *A, float *error_D)
 {
 
 	int i = threadIdx.x + blockIdx.x * blockDim.x;
 
 	while(i < n)
 	{
-		atomicAdd(&(error_D), A[i]);
+		atomicAdd(&(error_D[0]), A[i]);
 	}
 }
 
