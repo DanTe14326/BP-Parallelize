@@ -53,7 +53,7 @@ int main (int argc, char *argv[])
     for (unsigned int i=0; i < 1000000; i++) { 
 		inputTrain[i] = rand()%2; 
 		sumTrain += inputTrain[i]; 
-		if((i % 10 == 9){
+		if(i % 10 == 9){
 			outputTrain[i / 10] = sumTrain % 2;
 			sumTrain = 0;
 		}
@@ -62,7 +62,7 @@ int main (int argc, char *argv[])
     for (unsigned int i=0; i < 10000; i++) { 
 		inputTest[i] = rand()%2;
 		sumTest += inputTest[i]; 
-		if((i % 10 == 9){
+		if(i % 10 == 9){
 			outputTest[i / 10] = sumTest % 2;
 			sumTest = 0;
 		}

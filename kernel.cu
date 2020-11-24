@@ -418,6 +418,12 @@ void BpMain(float *inputTrain_H, float *inputTest_H, float *outputTrain_H, float
 {
 	/* Allocate device variables  */
 	
+	float *inputTrain_D, *inputTest_D, *outputTrain_D, *outputTest_D;
+	cudaMalloc((void**)&inputTrain_D, trainNum * inLayout * sizeof(float));
+	cudaMalloc((void**)&inputTest_D, testNum * inLayout * sizeof(float));
+	cudaMalloc((void**)&outputTrain_D, trainNum * outLayout * sizeof(float));
+	cudaMalloc((void**)&outputTest_D, testNum * outLayout * sizeof(float));
+	
 	float *weightHideIn_D, *weightOutHide_D;
 	cudaMalloc((void**)&weightHideIn_D, hideLayout * inLayout * sizeof(float));
 	cudaMalloc((void**)&weightOutHide_D, outLayout * hideLayout * sizeof(float));
