@@ -71,33 +71,7 @@ int main (int argc, char *argv[])
     stopTime(&timer); printf("%f s\n", elapsedTime(timer));
     
 
-    // Allocate device variables ----------------------------------------------
-
-    printf("Allocating device variables..."); fflush(stdout);
-    startTime(&timer);
-
-	float *inputTrain_D, *inputTest_D, *outputTrain_D, *outputTest_D;
-    cudaMalloc((float**) &inputTrain_D, sizeof(float) * 1000000);
-    cudaMalloc((float**) &inputTest_D, sizeof(float) * 10000);
-    cudaMalloc((float**) &outputTrain_D, sizeof(float) * 100000);
-	cudaMalloc((float**) &outputTest_D, sizeof(float) * 1000);
-		
-    cudaDeviceSynchronize();
-    stopTime(&timer); printf("%f s\n", elapsedTime(timer));
-
-    // Copy host variables to device ------------------------------------------
-
-    printf("Copying data from host to device..."); fflush(stdout);
-    startTime(&timer);
-
-    cudaMemcpy(inputTrain_D, inputTrain, trainNum * inLayout * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(inputTest_D, inputTest, testNum * inLayout * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(outputTrain_D, outputTrain, trainNum * outLayout * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(outputTest_D, outputTest, testNum * outLayout * sizeof(float), cudaMemcpyHostToDevice);
-
-
-    cudaDeviceSynchronize();
-    stopTime(&timer); printf("%f s\n", elapsedTime(timer));
+    
 
     // Launch kernel using standard sgemm interface ---------------------------
     printf("Launching kernel..."); fflush(stdout);
