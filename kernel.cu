@@ -428,6 +428,12 @@ void BpMain(float *inputTrain_H, float *inputTest_H, float *outputTrain_H, float
 	float *error_D;
 	cudaMalloc((void**)&error_D, sizeof(float));
 	cudaMemset(error_D, 0, sizeof(float));
+	
+	// Copy host variables to device
+	cudaMemcpy(inputTrain_D, inputTrain_H, trainNum * inLayout * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(inputTest_D, inputTest_H, testNum * inLayout * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(outputTrain_D, outputTrain_H, trainNum * outLayout * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(outputTest_D, outputTest_H, testNum * outLayout * sizeof(float), cudaMemcpyHostToDevice);
 
 
 	/* Initialize thread block and kernel grid dimensions */
