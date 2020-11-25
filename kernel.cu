@@ -355,7 +355,7 @@ __global__ void vectorSub(int n, float *A, float *B, float *C) {
 	
     if(i < n){
 		C[i] = 0.5 * (A[i] - B[i]) * (A[i] - B[i]);
-		printf("Thread id is: %d 	Error Vector is: %.5f\n", i, C[i]);
+		printf("Thread id is: %d 	test is: %.5f 	real is: %.5f	Error Vector is: %.5f\n", i, A[i], B[i], C[i]);
 	}
 }
 
